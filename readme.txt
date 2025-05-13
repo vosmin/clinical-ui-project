@@ -98,4 +98,4 @@ Please refer to `UML_diagram.png` for class relationships and structure.
 
 Github:
 
-
+https://github.com/vosmin/clinical-ui-project
