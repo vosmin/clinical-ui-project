@@ -3,7 +3,7 @@ import pandas as pd
 def view_note_by_date(patient_id, date):
     try:
         df_notes = pd.read_csv("data/Notes.csv")
-        df = pd.read_csv("data/Patient_data.csv", delimiter='\t')
+        df_patients = pd.read_csv("data/Patient_data.csv", delimiter='\t')
         matches = df_patients[(df_patients['Patient_ID'] == patient_id) & (df_patients['Visit_time'] == date)]
         if matches.empty:
             return "No visit found for that patient on given date."
