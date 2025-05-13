@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 def generate_statistics():
     try:
-        df = pd.read_csv("data/Patient_data.csv", delimiter='\t')
+        df = pd.read_csv("data/Patient_data.csv", delimiter=',')
         fig, ax = plt.subplots()
         df['Race'].value_counts().plot(kind='bar', ax=ax, title="Patient Race Distribution")
         fig.savefig("output/statistics_plot.png")

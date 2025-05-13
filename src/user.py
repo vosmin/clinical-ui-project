@@ -1,13 +1,22 @@
 import pandas as pd
 
-def authenticate_user(username, password):
-    try:
-        df = pd.read_csv("data/Credentials.csv", delimiter='\t')
+class User:
+    def __init__(self, username, password):
+        self.username = username.strip()
+        self.password = password.strip()
+        self.role = None
 
-        match = df[(df['username'] == username) & (df['password'] == password)]
-        if not match.empty:
-            return match.iloc[0]['role']
-        return None
-    except Exception as e:
-        print("Error reading Credentials.csv:", e)
-        return None
+    def authenticate(self):
+        try:
+            df = pd.read_csv("data/Credentials.csv", delimiter=",")
+            df["username"] = df["username"].astype(str).str.strip()
+            df["password"] = df["password"].astype(str).str.strip()
+
+            match = df[(df["username"] == self.username) & (df["password"] == self.password)]
+            if not match.empty:
+                self.role = match.iloc[0]["role"]
+                return True
+            return False
+        except Exception as e:
+            print(f"Authentication error: {e}")
+            return False

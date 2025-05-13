@@ -1,10 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
-from user import authenticate_user
-from patient import *
-from note import *
-from stats import *
+from user import User
+from patient import Patient
+from note import Note
+from stats import generate_statistics
 import datetime
+import pandas as pd
 
 class App:
     def __init__(self):
@@ -27,10 +28,10 @@ class App:
     def handle_login(self):
         username = self.username_entry.get()
         password = self.password_entry.get()
-        role = authenticate_user(username, password)
-        if role:
-            self.user_role = role
-            self.username = username
+        user = User(username, password)
+        if user.authenticate():
+            self.user_role = user.role
+            self.username = user.username
             self.log_action("login_success")
             self.create_main_menu()
         else:
@@ -66,31 +67,95 @@ class App:
 
     def retrieve_patient_ui(self):
         pid = self.prompt("Enter Patient ID")
-        info = retrieve_patient(pid)
-        messagebox.showinfo("Patient Info", info)
-        self.log_action("retrieve_patient")
+        if pid:
+            patient = Patient(pid)
+            info = patient.retrieve_latest_visit()
+            messagebox.showinfo("Patient Info", info)
+            self.log_action("retrieve_patient")
 
     def add_patient_ui(self):
-        add_patient_gui(self.window, self.log_action)
+        Patient.add_patient_gui(self.window, self.log_action)
 
     def remove_patient_ui(self):
         pid = self.prompt("Enter Patient ID to remove")
-        msg = remove_patient(pid)
-        messagebox.showinfo("Remove Patient", msg)
-        self.log_action("remove_patient")
+        if pid:
+            patient = Patient(pid)
+            msg = patient.remove_from_file()
+            messagebox.showinfo("Remove Patient", msg)
+            self.log_action("remove_patient")
 
     def count_visits_ui(self):
-        date = self.prompt("Enter date (YYYY-MM-DD)")
-        result = count_visits_by_date(date)
-        messagebox.showinfo("Visit Count", result)
-        self.log_action("count_visits")
+        top = tk.Toplevel()
+        top.title("Count Visits")
+
+        try:
+            df = pd.read_csv("data/Patient_data.csv", delimiter=",")
+            df.columns = df.columns.str.strip()
+            df["Visit_time"] = df["Visit_time"].astype(str).str.strip()
+            visit_dates = sorted(df["Visit_time"].unique())
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load patient data: {e}")
+            return
+
+        tk.Label(top, text="Select Visit Date").pack()
+        date_var = tk.StringVar()
+        tk.OptionMenu(top, date_var, *visit_dates).pack()
+
+        def submit():
+            date = date_var.get()
+            if not date:
+                messagebox.showerror("Input Error", "Please select a date.")
+                return
+            result = Patient.count_visits_by_date(date)
+            messagebox.showinfo("Visit Count", result)
+            self.log_action("count_visits")
+            top.destroy()
+
+        tk.Button(top, text="Count Visits", command=submit).pack()
 
     def view_note_ui(self):
-        pid = self.prompt("Enter Patient ID")
-        date = self.prompt("Enter Date (YYYY-MM-DD)")
-        note = view_note_by_date(pid, date)
-        messagebox.showinfo("Clinical Note", note)
-        self.log_action("view_note")
+        top = tk.Toplevel()
+        top.title("View Note")
+
+        try:
+            df = pd.read_csv("data/Patient_data.csv", delimiter=",")
+            df["Patient_ID"] = df["Patient_ID"].astype(str).str.strip()
+            df["Visit_time"] = df["Visit_time"].astype(str).str.strip()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load patient data: {e}")
+            return
+
+        tk.Label(top, text="Select Patient ID").pack()
+        patient_var = tk.StringVar()
+        tk.OptionMenu(top, patient_var, *sorted(df["Patient_ID"].unique())).pack()
+
+        tk.Label(top, text="Select Visit Date").pack()
+        date_var = tk.StringVar()
+        date_menu = tk.OptionMenu(top, date_var, "")
+        date_menu.pack()
+
+        def update_dates(*args):
+            pid = patient_var.get()
+            dates = df[df["Patient_ID"] == pid]["Visit_time"].unique()
+            date_var.set("")
+            date_menu["menu"].delete(0, "end")
+            for date in sorted(dates):
+                date_menu["menu"].add_command(label=date, command=tk._setit(date_var, date))
+
+        patient_var.trace("w", update_dates)
+
+        def submit():
+            pid = patient_var.get()
+            date = date_var.get()
+            if not pid or not date:
+                messagebox.showerror("Input Error", "Please select both Patient ID and Date.")
+                return
+            note = Note(pid, date)
+            messagebox.showinfo("Clinical Note", note.fetch_notes())
+            self.log_action("view_note")
+            top.destroy()
+
+        tk.Button(top, text="View Note", command=submit).pack()
 
     def generate_statistics_ui(self):
         stats_path = generate_statistics()
